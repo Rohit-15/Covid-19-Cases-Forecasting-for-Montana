@@ -1,0 +1,163 @@
+---
+
+author: "Rohit Desai"
+date: "2024-01-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(dplyr)
+library("forecast")
+library("tseries")
+```
+
+```{r}
+State='MT'                      # State assigned for forcasting covid cases
+
+df<- read_excel('~/Documents/Winter/Time Series/Notes/Class2/2020_Covid_Data.xlsx',sheet = 'Cases')
+df_state<- df %>% select('Date','MT')
+```
+
+
+```{r}
+# converting date column into datetime dtype
+
+df_state$Date <- as.Date(as.numeric(df_state$Date),origin = "1899-12-30")
+head(df_state)
+
+# checking for NAs
+colSums(is.na(df_state))
+which(is.na(df_state), arr.ind = TRUE) # returns the rows that have NA values 
+tail(df_state)
+
+# as the NA in the date column is for grand total of the number of covid cases, removing the row.
+
+df_state<- na.omit(df_state)
+```
+
+```{r}
+# splitting data into train(data until 31-12-2020) and test(1-01-2021 until 10-02-2021)
+
+train_df_state<-df_state[1:345, ]
+test_df_state<- df_state[346:nrow(df_state), ]
+
+# Converting data to Time series dtype
+
+ts_data<- ts(train_df_state$MT,start = c(2020,01,22),frequency = 345)
+plot.ts(ts_data)
+
+# checking for stationarity in the time series data
+
+adf.test(ts_data)
+# p-value is very high, implying non-stationarity in data. Differencing it to make it stationary.
+
+# diff=1
+ts_data_d<-diff(ts_data,differences = 1)
+adf.test(ts_data_d)
+
+# diff=2
+ts_data_d<-diff(ts_data,differences = 2)
+adf.test(ts_data_d)
+
+# p-value less than 0.05,implying stationarity of time series when d=2
+plot.ts(ts_data_d)
+```
+
+
+```{r}
+# finding values of p(AR term) and q(MA term) using plots
+
+Pacf(ts_data_d,lag.max = 10)       # from the plot p=3
+Acf(ts_data_d,lag.max = 10)        # from the plot q=1
+
+# optimal paramenters for ARIMA model, p=3,d=2,q=1
+```
+
+```{r}
+# As the data has less than 2 periods, seasonality can't be confirmed
+
+# building models
+# model 1 with p=3,d=2,q=1
+
+model_1<-Arima(ts_data,order = c(3,2,1))
+model_1
+summary(model_1)
+
+# model 2 with p=2,d=2,q=1
+model_2<-Arima(ts_data,order = c(2,2,1))
+model_2
+summary(model_2)
+
+# model 3 with p=3,d=2,q=2
+model_3<-Arima(ts_data,order = c(3,2,2))
+model_3
+summary(model_3)
+
+# model 4 with p=1,d=2,q=2
+model_4<-Arima(ts_data,order = c(1,2,2))
+model_4
+summary(model_4)
+
+# model 5 with p=2,d=2,q=2
+model_5<-Arima(ts_data,order = c(2,2,2))
+model_5
+summary(model_5)
+
+
+
+```
+
+```{r}
+# Auto Arima
+model_6<-auto.arima(ts_data)
+model_6
+summary(model_6)
+```
+
+```{r}
+# Predictions
+
+model_1.predict<-forecast:::forecast.Arima(model_1,h=41,level = c(80,95))
+plot(model_1.predict)
+summary(model_1.predict)
+
+model_2.predict<-forecast:::forecast.Arima(model_2,h=41,level = c(80,95))
+plot(model_2.predict)
+summary(model_2.predict)
+
+model_3.predict<-forecast:::forecast.Arima(model_3,h=41,level = c(80,95))
+plot(model_3.predict)
+summary(model_3.predict)
+
+model_4.predict<-forecast:::forecast.Arima(model_4,h=41,level = c(80,95))
+plot(model_4.predict)
+summary(model_4.predict)
+
+model_5.predict<-forecast:::forecast.Arima(model_5,h=41,level = c(80,95))
+plot(model_5.predict)
+summary(model_5.predict)
+
+model_6.predict<-forecast:::forecast.Arima(model_6,h=41,level = c(80,95))
+plot(model_6.predict)
+summary(model_6.predict)
+
+
+```
+```{r}
+model_6.predict<-forecast:::forecast.Arima(model_6,h=41,level = c(80,95))
+plot(model_6.predict)
+summary(model_6.predict)
+```
+```{r}
+data=data.frame(summary(model_6.predict))
+print(data)
+```
+```{r}
+
+```
+
